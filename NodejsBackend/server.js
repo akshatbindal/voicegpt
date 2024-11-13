@@ -4,20 +4,20 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+require('dotenv').config();
 
 const app = express();
 const PORT = 3000;
 
-// Record audio using FFmpeg directly
 function recordAudio(outputFilePath) {
     return new Promise((resolve, reject) => {
         const ffmpeg = spawn('ffmpeg', [
-            '-y', // Overwrite file without asking
-            '-f', 'dshow', // Use Windows DirectShow for microphone input
+            '-y', 
+            '-f', 'dshow', 
             '-i', 'audio=Microphone Array (Intel® Smart Sound Technology for Digital Microphones)',
-            '-acodec', 'pcm_s16le', // Audio codec
-            '-ar', '44100', // Audio sampling rate
-            '-af', 'silencedetect=noise=-30dB:d=1', // Detect silence below -30dB lasting more than 1 second
+            '-acodec', 'pcm_s16le', 
+            '-ar', '44100', 
+            '-af', 'silencedetect=noise=-30dB:d=1',
             outputFilePath
         ]);
 
@@ -25,11 +25,10 @@ function recordAudio(outputFilePath) {
             const message = data.toString();
             console.error(`FFmpeg log: ${message}`);
 
-            // Check for silence detection in the log
             if (message.includes('silencedetect')) {
                 if (message.includes('silence_start')) {
                     console.log("Silence detected, stopping recording...");
-                    ffmpeg.kill('SIGINT'); // Stop recording when silence is detected
+                    ffmpeg.kill('SIGINT');
                 }
             }
         });
@@ -40,45 +39,14 @@ function recordAudio(outputFilePath) {
         });
 
         ffmpeg.on('close', (code) => {
-            if (code !== 0) {
-                return reject(new Error(`FFmpeg exited with code ${code}`));
-            }
+            // if (code !== 0) {
+            //     return reject(new Error(`FFmpeg exited with code ${code}`));
+            // }
             resolve();
         });
     });
 }
 
-// function recordAudio(outputFilePath) {
-//     return new Promise((resolve, reject) => {
-//         const ffmpeg = spawn('ffmpeg', [
-//             '-y',
-//             '-f', 'dshow',
-//             '-i', 'audio=Microphone Array (Intel® Smart Sound Technology for Digital Microphones)', // Test without quotes or escape
-//             '-t', '5',
-//             '-acodec', 'pcm_s16le',
-//             '-ar', '44100',
-//             outputFilePath
-//         ]);           
-
-//         ffmpeg.stderr.on('data', (data) => {
-//             console.error(`FFmpeg error: ${data}`);
-//         });
-
-//         ffmpeg.on('error', (error) => {
-//             console.error(`Failed to start FFmpeg: ${error}`);
-//             reject(error);
-//         });
-
-//         ffmpeg.on('close', (code) => {
-//             if (code !== 0) {
-//                 return reject(new Error(`FFmpeg exited with code ${code}`));
-//             }
-//             resolve();
-//         });
-//     });
-// }
-
-// Trigger Whisper Python script
 function transcribeAudio(audioFile) {
     return new Promise((resolve, reject) => {
         const pythonScript = `python whisper_recognize.py ${audioFile}`;
@@ -112,6 +80,7 @@ app.get('/transcribe', async (req, res) => {
     const audioFilePath = path.join(__dirname, 'audio.wav');
 
     try {
+        console.log("Helllo");
         await recordAudio(audioFilePath);
         const transcription = await transcribeAudio(audioFilePath);
         const geminiResponse = await queryGemini(transcription);
